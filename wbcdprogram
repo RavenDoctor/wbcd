@@ -1,0 +1,82 @@
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Ensure that tensorflow has been installed
+try:
+    import tensorflow as tf
+except ModuleNotFoundError:
+    import subprocess
+    import sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "tensorflow"])
+    import tensorflow as tf
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+# Load the dataset, I used my personal user c drive
+data = pd.read_csv("C:\\Users\\adams\\Documents\\wbcd.csv")
+
+# Handle missing values and encode categorical variables if needed
+# (Assuming the dataset is already preprocessed)
+
+# Extract features and target variable
+X = data.drop(columns=['Diagnosis'])  # Features
+y = data['Diagnosis']  # Target variable
+
+# Use encoder to identify the target variable
+encoder = LabelEncoder()
+y = encoder.fit_transform(y)
+
+# Normalisation
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Now I can split my data set into training and testing sets accordingly
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+# Define the neural network architecture
+model = Sequential([
+    Dense(128, activation='relu', input_shape=(X_train.shape[1],)),  # Input layer with 128 neurons and ReLU activation
+    Dense(64, activation='relu'),  # Hidden layer with 64 neurons and ReLU activation
+    Dense(len(np.unique(y)), activation='softmax')  # Output layer with softmax activation for multi-class classification
+])
+
+# Compile the model
+model.compile(optimizer='adam',  # Adam optimizer for optimization (the optimizer not me)
+              loss='sparse_categorical_crossentropy',  # Sparse categorical cross-entropy loss for multi-class classification
+              metrics=['accuracy'])  # Metric to monitor during training
+
+# Begin training the model
+history = model.fit(X_train, y_train, epochs=20, batch_size=32, validation_split=0.1)  # Train the model for 20 epochs with a batch size of 32
+
+# Model Evaluation
+loss, accuracy = model.evaluate(X_test, y_test)  # Evaluate the model on the test set
+print(f"Test Accuracy: {accuracy}")  # Print the test accuracy
+
+# Create a Confusion Matrix
+y_pred = model.predict(X_test)
+y_pred_classes = np.argmax(y_pred, axis=1)
+conf_matrix = confusion_matrix(y_test, y_pred_classes)
+
+# Plot a Confusion Matrix for my visualisation
+plt.figure(figsize=(10, 8))
+sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=encoder.classes_, yticklabels=encoder.classes_)
+plt.xlabel("Predicted labels")
+plt.ylabel("True labels")
+plt.title("Confusion Matrix")
+plt.show()
+
+# Create a Learning Curve for my visualisation
+plt.figure(figsize=(10, 6))
+plt.plot(history.history['accuracy'], label='accuracy')
+plt.plot(history.history['val_accuracy'], label='val_accuracy')
+plt.title('Learning Curve')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
